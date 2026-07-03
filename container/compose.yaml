@@ -1,0 +1,18 @@
+name: portfolio-frontend
+
+services:
+  frontend:
+    build:
+      context: ..
+      dockerfile: container/Dockerfile
+    volumes:
+      - ..:/workspace:cached
+      - node_modules:/workspace/node_modules
+    ports:
+      - "5173:5173" # Vite
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    command: sleep infinity
+
+volumes:
+  node_modules:

@@ -1,0 +1,37 @@
+{
+  "name": "portfolio-frontend",
+
+  // container/compose.yaml の frontend サービスを開発環境として使う
+  "dockerComposeFile": ["../container/compose.yaml"],
+  "service": "frontend",
+  "workspaceFolder": "/workspace",
+
+  // Vite 開発サーバのポートを自動転送（ホストの http://localhost:5173 で開ける）
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "notify"
+    }
+  },
+
+  // コンテナ作成後に依存関係をインストールする
+  "postCreateCommand": "bash .devcontainer/post_create.sh",
+
+  // Dockerfile と揃えて node ユーザで動かす
+  "remoteUser": "node",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "svelte.svelte-vscode",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
+    }
+  }
+}

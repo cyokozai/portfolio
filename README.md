@@ -1,135 +1,43 @@
-# repo-template
+# Svelte + Vite
 
-NCチームで使用する開発環境のテンプレートです．
+This template should help get you started developing with Svelte in Vite.
 
-## セットアップ
+## Recommended IDE Setup
 
-### 1. ブランチ保護ルールの設定（Rulesets）
+[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
 
-`main` ブランチへの直接プッシュを禁止し，プルリクエスト経由のマージを強制します．
-GitHub の新しい **Rulesets** を使用して設定します．
+## Need an official Svelte framework?
 
-#### 設定手順
+Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
 
-1. GitHub リポジトリの **Settings** > **Rules** > **Rulesets** を開く
-2. **New ruleset** > **New branch ruleset** をクリック
-3. 以下を設定して **Save changes** をクリックする
+## Technical considerations
 
-#### Ruleset 設定内容
+**Why use this over SvelteKit?**
 
-| 項目 | 値 |
-| --- | --- |
-| Ruleset name | `pullreq`（任意） |
-| Enforcement status | Active |
-| Target branches | Default branch（`main`） |
+- It brings its own routing solution which might not be preferable for some users.
+- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
 
-#### Bypass list
+This template contains as little as possible to get started with Vite + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
 
-| ロール | 許可内容 |
-| --- | --- |
-| Organization admin | Allow for pull requests only |
-| Repository admin | Always allow |
+Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
 
-#### 有効にするルール
+**Why include `.vscode/extensions.json`?**
 
-| ルール | 説明 |
-| --- | --- |
-| Restrict deletions | ブランチの誤削除を防ぐ |
-| Require a pull request before merging | マージ前に PR を必須にする |
-| Require status checks to pass | CI テストが通過しないとマージ不可 |
-| Block force pushes | 履歴の強制書き換えを禁止する |
-| Automatically request Copilot code review | PR 作成時に Copilot によるコードレビューを自動リクエストする |
+Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
 
----
+**Why enable `checkJs` in the JS template?**
 
-### 2. 開発環境のセットアップ（Dev Container）
+It is likely that most cases of changing variable types in runtime are likely to be accidental, rather than deliberate. This provides advanced typechecking out of the box. Should you like to take advantage of the dynamically-typed nature of JavaScript, it is trivial to change the configuration.
 
-Dev Container を使用することで，チーム全員が同一の開発環境を再現できます．
+**Why is HMR not preserving my local component state?**
 
-#### 前提条件
+HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/sveltejs/svelte-hmr/tree/master/packages/svelte-hmr#preservation-of-local-state).
 
-- [Docker](https://www.docker.com/products/docker-desktop/) がインストール済みであること
-- [Visual Studio Code](https://code.visualstudio.com/) がインストール済みであること
-- VS Code 拡張機能 [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) がインストール済みであること
+If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
 
-#### 手順
-
-1. VS Code でリポジトリのルートディレクトリを開く
-2. コマンドパレットを開く（`Cmd+Shift+P` / `Ctrl+Shift+P`）
-3. `Dev Containers: Reopen in Container` を選択する
-4. コンテナのビルドが完了するまで待つ
-
-コンテナ起動後は，`.devcontainer/devcontainer.json` に定義された環境が自動的に適用されます．
-
----
-
-### 3. チケット駆動開発のブランチ運用
-
-GitHub Issues をチケットとして使用し，1 チケット 1 ブランチで作業を管理します．
-
-#### ブランチ運用フロー
-
-```text
-main
- └─ dev
-     └─ feat/*** ─── 作業 ─── PR ──→ dev ─── PR ──→ main
+```js
+// store.js
+// An extremely simple external store
+import { writable } from 'svelte/store'
+export default writable(0)
 ```
-
-##### feat/\*\*\* → dev（日常の開発）
-
-1. GitHub Issues で `[FEAT]` チケットを作成する
-2. `dev` ブランチから `feat/***` ブランチを切る（ブランチ名はチケットに記載）
-3. `feat/***` ブランチで作業を行う
-4. 作業完了後，`feat/***` から `dev` へ PR を作成してマージする
-
-##### dev → main（リリース）
-
-`dev` から `main` へマージするには，以下の条件をすべて満たす必要があります．
-
-| 条件 | 状態 |
-| --- | --- |
-| CI テストが全て通過していること | 必須 |
-| CD によるステージング環境へのデプロイが成功していること | 予定 |
-| 開発者がログ・メトリクス・トレースの取得を確認していること | 予定 |
-
----
-
-### 4. コミットメッセージテンプレートの設定
-
-`.gitmessage` をコミットメッセージのテンプレートとして使用します．
-リポジトリをクローン後，以下のコマンドを **1回だけ** 実行してください．
-
-```bash
-git config commit.template .gitmessage
-```
-
-設定後は `git commit` を実行すると，以下のテンプレートがエディタに表示されます．
-
-```text
-# feat | fix | docs | refactor | test | chore
-<type>: <subject>
-
-Refs: #
-```
-
-| type | 用途 |
-| --- | --- |
-| `feat` | 新機能の追加 |
-| `fix` | バグ修正 |
-| `docs` | ドキュメントのみの変更 |
-| `refactor` | 機能変更を伴わないコード改善 |
-| `test` | テストの追加・修正 |
-| `chore` | ビルド・設定などの雑務 |
-
----
-
-#### RACI
-
-各チケットには以下の役割を記載します．**R はチケット作成者自身**が担います．
-
-| 役割 | 説明 |
-| --- | --- |
-| R: 実行責任者 (Responsible) | 実際に作業を行う人．チケット作成者が担当する |
-| A: 説明責任者 (Accountable) | 成果物に対して最終責任を持つ人 |
-| C: 協業先 (Consulted) | 作業に際して相談・協力を求める人 |
-| I: 報告先 (Informed) | 進捗・完了を報告する人 |
