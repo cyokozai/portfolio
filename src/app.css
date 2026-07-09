@@ -1,38 +1,35 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.08);
-  --accent-border: rgba(170, 59, 255, 0.3);
+  /* ── カラーパレット ── */
+  --color-cyan:        #00AFCC;  /* メインカラー: ビビッドシアン */
+  --color-yellow:      #F6C745;  /* アクセントカラー: マスタードイエロー */
+  --color-white:       #FFFFFF;  /* ベースカラー: ホワイト */
+  --color-charcoal:    #2C3E50;  /* テキストカラー: ダークチャコール */
+  --color-dark-cyan:   #0087A1;  /* サブカラー: ダークシアン */
+  --color-deep-teal:   #006F85;  /* ディープティール: 最深シアン系 */
+  --text:              #546E7A;  /* 本文: チャコールの薄バリアント */
+  --border:            #D5E8ED;  /* 枠線: 極薄シアン派生 */
+  --code-bg:           #F0F8FA;  /* コード背景: 極薄シアン */
+  --accent-bg:         rgba(0, 175, 204, 0.08);
+  --accent-border:     rgba(0, 175, 204, 0.3);
+  
+  --text-h:      var(--color-charcoal);      /* 見出し */
+  --bg:          var(--color-white);         /* 背景 */
+  --accent:      var(--color-cyan);          /* アクセント */
+  --accent-sub:  var(--color-yellow);        /* サブアクセント */
+  --accent-dark: var(--color-dark-cyan);     /* 引き締め色 */
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --sans: 'Zen Kaku Gothic New', system-ui, sans-serif;
+  --mono: 'Ubuntu Sans Mono', ui-monospace, monospace;
 
   font: 17px/160% var(--sans);
   letter-spacing: 0.15px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.1);
-    --accent-border: rgba(192, 132, 252, 0.3);
-  }
 }
 
 *, *::before, *::after {
