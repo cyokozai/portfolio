@@ -1,5 +1,16 @@
 <script>
   import { fly } from 'svelte/transition';
+
+  function onVisible(node, callback) {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) callback(); },
+      { threshold: 0.4 }
+    );
+    observer.observe(node);
+    return { destroy: () => observer.disconnect() };
+  }
+
+  let mottosVisible = false;
 </script>
 
 <!-- NAV -->
@@ -12,15 +23,13 @@
 <section id="hero">
   <div class="hero-content">
     <p class="hero-label">Platform Engineer · Graduate Student</p>
-    <h1>cyokozai | 猪口才</h1>
-    <p class="hero-sub">a.k.a. Yusuke Inoue</p>
-    <p class="hero-tagline">
-      Cloud Native な基盤を設計・構築し、プロダクトとして届ける。
-    </p>
+    <h1>Yusuke Inoue</h1>
+    <p class="hero-sub">a.k.a. cyokozai | 猪口才</p>
+    <p class="hero-tagline"></p>
     <ul class="hero-affil">
-      <li>千葉工業大学大学院</li>
+      <li>千葉工業大学大学院 情報科学研究科 情報科学専攻</li>
       <li>CloudNative Days 実行委員</li>
-      <li>スリーシェイク インターン</li>
+      <li>アメリス株式会社 インターン</li>
     </ul>
     <div class="hero-mottos">
       <span class="motto">Infrastructure as a Smile</span>
@@ -28,7 +37,17 @@
     </div>
   </div>
   <div class="hero-photo" in:fly={{ y: 16, duration: 900, delay: 300 }}>
-    <img src="/photo.jpg" alt="cyokozai DJ" />
+    <img src="https://github.com/cyokozai.png" alt="cyokozai" />
+  </div>
+</section>
+
+<!-- MOTTOS -->
+<section id="mottos">
+  <div class="cyan-block" use:onVisible={() => mottosVisible = true}>
+    {#if mottosVisible}
+      <p class="block-motto" in:fly={{ y: 20, duration: 600 }}>Infrastructure as a Smile</p>
+      <p class="block-motto" in:fly={{ y: 20, duration: 600, delay: 150 }}>今ハタダ、深ク静カニ潜航セヨ。</p>
+    {/if}
   </div>
 </section>
 
@@ -37,14 +56,14 @@
   <p>© 2026 Yusuke Inoue</p>
 </footer>
 
+
 <style>
-  /* ── Layout ── */
   :global(#app) {
     width: 760px;
     max-width: 100%;
     margin: 0 auto;
     border: 1px solid var(--border);
-    height: 100dvh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
   }
@@ -91,7 +110,6 @@
     gap: 32px;
     align-items: start;
     padding: 72px 40px 80px;
-    flex: 1;
   }
 
   .hero-label {
@@ -154,6 +172,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+    
   }
 
   .motto {
@@ -169,7 +188,7 @@
 
   .hero-photo {
     width: 200px;
-    aspect-ratio: 3/4;
+    aspect-ratio: 1/1;
     border-radius: 8px;
     overflow: hidden;
     margin-top: 8px;
@@ -189,6 +208,35 @@
     color: var(--border);
     letter-spacing: 0.5px;
     text-transform: uppercase;
+  }
+
+  /* ── Mottos block ── */
+  #mottos {
+    padding: 80px 40px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .cyan-block {
+    width: 200px;
+    height: 200px;
+    background: var(--color-cyan);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .block-motto {
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--color-white);
+    letter-spacing: 0.05em;
+    line-height: 1.6;
   }
 
   /* ── Footer ── */

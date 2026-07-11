@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:24-slim
+FROM oven/bun:1
 
 ENV LANG=C.UTF-8 \
     TZ=Asia/Tokyo
@@ -17,8 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /workspace/node_modules && chown -R node:node /workspace
+RUN mkdir -p /workspace/node_modules && chown -R bun:bun /workspace
 
-USER node
+USER bun
 
 CMD ["sleep", "infinity"]
