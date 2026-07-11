@@ -34,6 +34,12 @@ RUN groupadd --gid ${USER_GID} ${USERNAME} \
     && mkdir -p /workspace /go/pkg/mod \
     && chown -R ${USER_UID}:${USER_GID} /workspace /go
 
+# ログインシェルでも Go の PATH を保証する
+# （Debian の /etc/profile が PATH を上書きし /usr/local/go/bin・/go/bin が落ちるため）
+RUN printf 'export GOPATH=/go\nexport PATH=/usr/local/go/bin:/go/bin:$PATH\n' \
+      > /etc/profile.d/go.sh \
+    && chmod 0644 /etc/profile.d/go.sh
+
 USER ${USERNAME}
 
 # Go 開発ツール（言語サーバ / デバッガ / 静的解析）
