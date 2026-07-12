@@ -1,0 +1,56 @@
+:root {
+  /* ── カラーパレット ── */
+  --color-cyan:        #00AFCC;  /* メインカラー: ビビッドシアン */
+  --color-yellow:      #F6C745;  /* アクセントカラー: マスタードイエロー */
+  --color-white:       #FFFFFF;  /* ベースカラー: ホワイト */
+  --color-charcoal:    #2C3E50;  /* テキストカラー: ダークチャコール */
+  --color-dark-cyan:   #0087A1;  /* サブカラー: ダークシアン */
+  --color-deep-teal:   #006F85;  /* ディープティール: 最深シアン系 */
+  --text:              #546E7A;  /* 本文: チャコールの薄バリアント */
+  --border:            #D5E8ED;  /* 枠線: 極薄シアン派生 */
+  --code-bg:           #F0F8FA;  /* コード背景: 極薄シアン */
+  --accent-bg:         rgba(0, 175, 204, 0.08);
+  --accent-border:     rgba(0, 175, 204, 0.3);
+  
+  --text-h:      var(--color-charcoal);      /* 見出し */
+  --bg:          var(--color-white);         /* 背景 */
+  --accent:      var(--color-cyan);          /* アクセント */
+  --accent-sub:  var(--color-yellow);        /* サブアクセント */
+  --accent-dark: var(--color-dark-cyan);     /* 引き締め色 */
+
+  --sans: 'Zen Kaku Gothic New', system-ui, sans-serif;
+  --mono: 'Ubuntu Sans Mono', ui-monospace, monospace;
+
+  font: 17px/160% var(--sans);
+  letter-spacing: 0.15px;
+  color-scheme: light;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+h1, h2, h3 {
+  font-family: var(--sans);
+  color: var(--text-h);
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

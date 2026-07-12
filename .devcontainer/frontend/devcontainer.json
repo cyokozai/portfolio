@@ -1,0 +1,40 @@
+{
+  "name": "portfolio-frontend",
+
+  // frontend/container/compose.yaml の frontend サービスを開発環境として使う
+  // （.devcontainer/frontend/ から見て 2 階層上がリポジトリルート）
+  "dockerComposeFile": ["../../frontend/container/compose.yaml"],
+  "service": "frontend",
+
+  // リポジトリ全体を /workspace にマウントし、作業ディレクトリは frontend/
+  "workspaceFolder": "/workspace/frontend",
+
+  // Vite 開発サーバのポートを自動転送（ホストの http://localhost:5173 で開ける）
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "notify"
+    }
+  },
+
+  // workspaceFolder が /workspace/frontend のため、スクリプトは絶対パスで指定する
+  "postCreateCommand": "bash /workspace/.devcontainer/frontend/post_create.sh",
+
+  // Dockerfile と揃えて bun ユーザで動かす
+  "remoteUser": "bun",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "svelte.svelte-vscode",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -e
+
+echo "==> [postCreate] portfolio-frontend セットアップ開始"
+
+cd /workspace/frontend
+
+if [ -f package.json ]; then
+  echo "==> package.json を検出。依存関係をインストールします (bun install)"
+  bun install
+else
+  echo "==> package.json が見つかりません（まだ雛形が無い状態）。"
+  echo "    コンテナ内のターミナルで、次を実行して Svelte 雛形を作成してください:"
+  echo ""
+  echo "      bun create vite . --template svelte"
+  echo "      bun install"
+  echo ""
+  echo "    （'.' は現在のフォルダに作る指定。既存ファイルがあると警告が出るので"
+  echo "      'Ignore files and continue' を選んでください）"
+fi
+
+echo "==> [postCreate] 完了"

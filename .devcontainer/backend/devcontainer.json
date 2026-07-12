@@ -1,0 +1,42 @@
+{
+  "name": "portfolio-backend",
+
+  // backend/container/compose.yaml の backend サービスを開発環境として使う
+  // （.devcontainer/backend/ から見て 2 階層上がリポジトリルート）
+  "dockerComposeFile": ["../../backend/container/compose.yaml"],
+  "service": "backend",
+
+  // リポジトリ全体を /workspace にマウントし、作業ディレクトリは backend/
+  "workspaceFolder": "/workspace/backend",
+
+  // Go API サーバのポートを自動転送（ホストの http://localhost:8080）
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Go API Server",
+      "onAutoForward": "notify"
+    }
+  },
+
+  // workspaceFolder が /workspace/backend のため、スクリプトは絶対パスで指定する
+  "postCreateCommand": "bash /workspace/.devcontainer/backend/post_create.sh",
+
+  // Dockerfile と揃えて dev ユーザで動かす
+  "remoteUser": "dev",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ],
+      "settings": {
+        "go.useLanguageServer": true,
+        "go.toolsManagement.checkForUpdates": "off",
+        "editor.formatOnSave": true,
+        "[go]": {
+          "editor.defaultFormatter": "golang.go"
+        }
+      }
+    }
+  }
+}
