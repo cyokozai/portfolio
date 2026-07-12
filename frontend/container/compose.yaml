@@ -6,8 +6,9 @@ services:
       context: ..
       dockerfile: container/Dockerfile
     volumes:
-      - ..:/workspace:cached
-      - node_modules:/workspace/node_modules
+      # モノレポ全体をマウント（backend と対称）
+      - ../..:/workspace:cached
+      - node_modules:/workspace/frontend/node_modules
     ports:
       - "5173:5173" # Vite
     environment:

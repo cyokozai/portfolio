@@ -1,10 +1,13 @@
 {
   "name": "portfolio-frontend",
 
-  // container/compose.yaml の frontend サービスを開発環境として使う
-  "dockerComposeFile": ["../container/compose.yaml"],
+  // frontend/container/compose.yaml の frontend サービスを開発環境として使う
+  // （.devcontainer/frontend/ から見て 2 階層上がリポジトリルート）
+  "dockerComposeFile": ["../../frontend/container/compose.yaml"],
   "service": "frontend",
-  "workspaceFolder": "/workspace",
+
+  // リポジトリ全体を /workspace にマウントし、作業ディレクトリは frontend/
+  "workspaceFolder": "/workspace/frontend",
 
   // Vite 開発サーバのポートを自動転送（ホストの http://localhost:5173 で開ける）
   "forwardPorts": [5173],
@@ -15,8 +18,8 @@
     }
   },
 
-  // コンテナ作成後に依存関係をインストールする
-  "postCreateCommand": "bash .devcontainer/post_create.sh",
+  // workspaceFolder が /workspace/frontend のため、スクリプトは絶対パスで指定する
+  "postCreateCommand": "bash /workspace/.devcontainer/frontend/post_create.sh",
 
   // Dockerfile と揃えて bun ユーザで動かす
   "remoteUser": "bun",

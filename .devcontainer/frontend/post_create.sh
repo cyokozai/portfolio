@@ -3,6 +3,8 @@ set -e
 
 echo "==> [postCreate] portfolio-frontend セットアップ開始"
 
+cd /workspace/frontend
+
 if [ -f package.json ]; then
   echo "==> package.json を検出。依存関係をインストールします (bun install)"
   bun install

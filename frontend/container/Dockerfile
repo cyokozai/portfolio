@@ -17,7 +17,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /workspace/node_modules && chown -R bun:bun /workspace
+# named volume のマウント先を bun 所有で用意する
+# （新規 named volume はイメージ側ディレクトリの所有権を引き継ぐため、
+#   ここを bun:bun にしておかないと volume 再作成時に root 所有になり EACCES になる）
+RUN mkdir -p /workspace/frontend/node_modules && chown -R bun:bun /workspace
 
 USER bun
 
