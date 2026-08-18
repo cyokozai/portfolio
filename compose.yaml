@@ -1,0 +1,37 @@
+# 開発用 compose（本番は container/Dockerfile が生成する単一イメージ）
+#
+# frontend と backend を「同一 project = 同一ネットワーク」に置くことが目的。
+# 以前は frontend/container/compose.yaml と backend/container/compose.yaml が
+# 別 project 名で起動しており、サービス名での相互到達ができなかった。
+name: portfolio
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: container/Dockerfile
+    volumes:
+      # モノレポ全体をマウント（本番ビルドで frontend/dist を static へ入れるため）
+      - .:/workspace:cached
+      # Go モジュールキャッシュは named volume で永続化
+      - gomodcache:/go/pkg/mod
+    ports:
+      - "8080:8080" # Go API Server
+    command: sleep infinity
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: container/Dockerfile
+    volumes:
+      - .:/workspace:cached
+      - node_modules:/workspace/frontend/node_modules
+    ports:
+      - "5173:5173" # Vite
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    command: sleep infinity
+
+volumes:
+  gomodcache:
+  node_modules:

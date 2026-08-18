@@ -1,16 +1,12 @@
 <script>
   import { fly } from 'svelte/transition';
 
-  function onVisible(node, callback) {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) callback(); },
-      { threshold: 0.4 }
-    );
-    observer.observe(node);
-    return { destroy: () => observer.disconnect() };
-  }
-
-  let mottosVisible = false;
+  // 本番では Go の単一バイナリが同一オリジンで返す。
+  // 開発時は Vite の proxy が backend コンテナへ中継する。
+  const profile = fetch('/api/profile').then((res) => {
+    if (!res.ok) throw new Error(`プロフィールの取得に失敗しました (${res.status})`);
+    return res.json();
+  });
 </script>
 
 <!-- NAV -->
@@ -20,22 +16,35 @@
 <div class="rule rule--cyan"></div>
 
 <!-- HERO -->
-<section id="hero">
-  <div class="hero-content">
-    <p class="hero-label">Platform Engineer · Graduate Student</p>
-    <h1>Yusuke Inoue</h1>
-    <p class="hero-sub">a.k.a. cyokozai | 猪口才</p>
-    <p class="hero-tagline"></p>
-    <ul class="hero-affil">
-      <li>千葉工業大学大学院 情報科学研究科 情報科学専攻</li>
-      <li>CloudNative Days 実行委員</li>
-      <li></li>
-    </ul>
-  </div>
-  <div class="hero-photo" in:fly={{ y: 16, duration: 900, delay: 300 }}>
-    <img src="https://github.com/cyokozai.png" alt="cyokozai" />
-  </div>
-</section>
+{#await profile}
+  <section id="hero" aria-busy="true">
+    <div class="hero-content">
+      <p class="hero-status">読み込み中…</p>
+    </div>
+  </section>
+{:then p}
+  <section id="hero">
+    <div class="hero-content">
+      <p class="hero-label">{p.label}</p>
+      <h1>{p.name}</h1>
+      <p class="hero-sub">a.k.a. {p.alias}</p>
+      <ul class="hero-affil">
+        {#each p.affiliations as affiliation}
+          <li>{affiliation}</li>
+        {/each}
+      </ul>
+    </div>
+    <div class="hero-photo" in:fly={{ y: 16, duration: 900, delay: 300 }}>
+      <img src={p.avatarUrl} alt={p.name} />
+    </div>
+  </section>
+{:catch error}
+  <section id="hero">
+    <div class="hero-content">
+      <p class="hero-status hero-status--error" role="alert">{error.message}</p>
+    </div>
+  </section>
+{/await}
 
 <!-- FOOTER -->
 <footer>
@@ -63,11 +72,6 @@
   .rule--cyan {
     height: 3px;
     background: var(--accent);
-  }
-
-  .rule--yellow {
-    height: 4px;
-    background: var(--accent-sub);
   }
 
   /* ── Nav ── */
@@ -124,13 +128,6 @@
     letter-spacing: 0.2px;
   }
 
-  .hero-tagline {
-    font-size: 15px;
-    line-height: 1.8;
-    color: var(--text);
-    margin-bottom: 8px;
-  }
-
   .hero-affil {
     list-style: none;
     padding: 0;
@@ -153,23 +150,15 @@
     font-weight: 700;
   }
 
-  .hero-mottos {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    
+  .hero-status {
+    font-size: 14px;
+    color: var(--text);
+    opacity: 0.6;
   }
 
-  .motto {
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--accent);
-    background: var(--accent-bg);
-    padding: 5px 14px;
-    border-radius: 4px;
-    border: 1px solid var(--accent-border);
-    letter-spacing: 0.2px;
+  .hero-status--error {
+    color: var(--accent-dark);
+    opacity: 1;
   }
 
   .hero-photo {
@@ -186,43 +175,6 @@
     object-fit: cover;
     object-position: center top;
     display: block;
-  }
-
-  .img-label {
-    font-size: 11px;
-    font-family: var(--mono);
-    color: var(--border);
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-  }
-
-  /* ── Mottos block ── */
-  #mottos {
-    padding: 80px 40px;
-    display: flex;
-    justify-content: center;
-  }
-
-  .cyan-block {
-    width: 200px;
-    height: 200px;
-    background: var(--color-cyan);
-    border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 24px;
-    text-align: center;
-  }
-
-  .block-motto {
-    font-size: 13px;
-    font-family: var(--mono);
-    color: var(--color-white);
-    letter-spacing: 0.05em;
-    line-height: 1.6;
   }
 
   /* ── Footer ── */

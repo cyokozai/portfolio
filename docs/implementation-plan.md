@@ -84,7 +84,12 @@ docker compose exec backend  curl -sfI http://frontend:5173
 
 ### 1-5. embed の下地
 
-`backend/static/.gitkeep` を作成し**コミットする**。`//go:embed all:static` と組み合わせること（`all:` が無いと `.` 始まりのファイルは除外され、`contains no embeddable files` でコンパイルできない。実測確認済み）。
+**配置**: `//go:embed` は親ディレクトリを遡れないため、埋め込み先は埋め込む Go ファイルと同じ階層に置く必要がある。`backend/static/` は `internal/server` から参照できないので、専用パッケージ `backend/internal/assets/` を作り、その配下に `static/` を置く。
+
+- `backend/internal/assets/assets.go` — `//go:embed all:static` と `FS()`（`fs.Sub` で `static/` を root として剥がす）
+- `backend/internal/assets/static/.gitkeep` — **コミットする**
+
+`all:` が無いと `.` 始まりのファイルは除外され `contains no embeddable files` でコンパイルできない（実測確認済み）。
 
 ### 受け入れ確認
 
@@ -123,7 +128,7 @@ docker compose exec backend  curl -sfI http://frontend:5173
 | stage | ベース | 処理 |
 |---|---|---|
 | web | `oven/bun:1` | `bun install --frozen-lockfile` → `bun run build` → `frontend/dist` |
-| build | `golang:1.26` | web の成果物を `backend/static/` へ COPY → `go build -trimpath -ldflags="-s -w"` |
+| build | `golang:1.26` | web の成果物を `backend/internal/assets/static/` へ COPY → `go build -trimpath -ldflags="-s -w"` |
 | final | `gcr.io/distroless/static-debian12:nonroot` | バイナリのみ COPY、`USER nonroot`、`EXPOSE 8080` |
 
 ### 受け入れ確認

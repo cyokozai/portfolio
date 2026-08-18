@@ -1,9 +1,9 @@
 {
   "name": "portfolio-backend",
 
-  // backend/container/compose.yaml の backend サービスを開発環境として使う
+  // ルートの compose.yaml の backend サービスを開発環境として使う
   // （.devcontainer/backend/ から見て 2 階層上がリポジトリルート）
-  "dockerComposeFile": ["../../backend/container/compose.yaml"],
+  "dockerComposeFile": ["../../compose.yaml"],
   "service": "backend",
 
   // リポジトリ全体を /workspace にマウントし、作業ディレクトリは backend/
