@@ -24,6 +24,10 @@
   // Dockerfile と揃えて bun ユーザで動かす
   "remoteUser": "bun",
 
+  // macOS では uid を書き換えない（既定 true だと bun が 1000→501 に変わり、
+  // named volume(node_modules, uid 1000) と所有者が食い違って EACCES になる）
+  "updateRemoteUserUID": false,
+
   "customizations": {
     "vscode": {
       "extensions": [

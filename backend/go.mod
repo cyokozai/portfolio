@@ -1,3 +1,3 @@
-module github.com/cyokozai/portfolio/backend
+module github.com/cyokozai
 
 go 1.26.5

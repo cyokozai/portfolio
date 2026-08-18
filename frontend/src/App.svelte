@@ -29,31 +29,17 @@
     <ul class="hero-affil">
       <li>千葉工業大学大学院 情報科学研究科 情報科学専攻</li>
       <li>CloudNative Days 実行委員</li>
-      <li>アメリス株式会社 インターン</li>
+      <li></li>
     </ul>
-    <div class="hero-mottos">
-      <span class="motto">Infrastructure as a Smile</span>
-      <span class="motto">今ハタダ、深ク静カニ潜航セヨ。</span>
-    </div>
   </div>
   <div class="hero-photo" in:fly={{ y: 16, duration: 900, delay: 300 }}>
     <img src="https://github.com/cyokozai.png" alt="cyokozai" />
   </div>
 </section>
 
-<!-- MOTTOS -->
-<section id="mottos">
-  <div class="cyan-block" use:onVisible={() => mottosVisible = true}>
-    {#if mottosVisible}
-      <p class="block-motto" in:fly={{ y: 20, duration: 600 }}>Infrastructure as a Smile</p>
-      <p class="block-motto" in:fly={{ y: 20, duration: 600, delay: 150 }}>今ハタダ、深ク静カニ潜航セヨ。</p>
-    {/if}
-  </div>
-</section>
-
 <!-- FOOTER -->
 <footer>
-  <p>© 2026 Yusuke Inoue</p>
+  <p>© 2026 cyokozai</p>
 </footer>
 
 

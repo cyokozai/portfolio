@@ -24,6 +24,10 @@
   // Dockerfile と揃えて dev ユーザで動かす
   "remoteUser": "dev",
 
+  // macOS では uid を書き換えない（既定 true だと dev が 1000→501 に変わり、
+  // named volume(gomodcache, uid 1000) と所有者が食い違う）
+  "updateRemoteUserUID": false,
+
   "customizations": {
     "vscode": {
       "extensions": [
