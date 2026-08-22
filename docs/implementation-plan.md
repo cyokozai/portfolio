@@ -17,10 +17,12 @@
 | 1 | backend HTTP 骨格 | readiness / SPA fallback / router / graceful shutdown（TDD） | 2〜3 時間 |
 | 2 | frontend 接続 | Vite proxy、`/api/profile` 開通、死んだコードの掃除 | 1〜2 時間 |
 | 3 | 本番イメージ | multi-stage → distroless 単一バイナリ | 1 時間 |
-| 4 | k8s マニフェスト | Deployment / Service / HPA。k3d で HPA 発火まで確認 | 1〜2 時間 |
+| 4 | k8s マニフェスト | Deployment / Service / HPA。**検証は VM 上の k3s で行う** | 1〜2 時間 |
 | 5 | CI/CD | GitHub Actions（test / build / push / タグ差し替え） | 1〜2 時間 |
-| 6 | ArgoCD | Application 定義と bootstrap | 1 時間 |
-| 7 | Cloudflare Tunnel | cloudflared Pod と公開 | 1 時間 |
+| 6 | platform（helmfile） | ArgoCD 本体と cloudflared を VM の k3s へ導入 | 1 時間 |
+| 7 | 公開 | ArgoCD へ Application 登録、トンネル疎通確認 | 1 時間 |
+
+**実行環境の方針（2026-08-22 決定）**: 実装・検証はすべて VM 上で行い、**Mac には何もインストールしない**。当初計画にあった Mac への `k3d` 導入は取りやめ。Mac 側で必要な確認は、使い捨てコンテナ（Docker は導入済み）で行う。
 
 ---
 
@@ -143,6 +145,8 @@ curl -so /dev/null -w '%{http_code}\n' localhost:8080/api/x   # 404
 docker images portfolio:dev              # 20MB 未満を期待
 ```
 
+**実績（2026-08-22）**: イメージ 7.95MB / `User=nonroot:nonroot` / シェル・`/bin/ls` とも不在 / `docker stop` で `/ready` 503・`/health` 200 を保ったまま ExitCode 0 で正常終了。
+
 ---
 
 ## Phase 4: k8s マニフェスト
@@ -163,15 +167,15 @@ docker images portfolio:dev              # 20MB 未満を期待
 
 ### 受け入れ確認
 
+VM 上の k3s に対して実施する。
+
 ```bash
-k3d cluster create portfolio -p "8080:80@loadbalancer"
-k3d image import portfolio:dev -c portfolio
 kubectl apply -k deploy/
 kubectl get hpa                # TARGETS が <unknown> でなく数値になること
 kubectl rollout restart deploy/portfolio && kubectl get pods -w   # 502 が出ないこと
 ```
 
-metrics-server は k3s / k3d に同梱されているため追加導入は不要（`kubectl top pods` で確認できる）。HPA の発火は負荷をかけて確認する。
+metrics-server は k3s に同梱されているため追加導入は不要（`--disable` で外せる packaged component の一覧に含まれることを確認済み）。HPA の発火は負荷をかけて確認する。
 
 ---
 
@@ -198,29 +202,47 @@ PR で ci が緑 / main への push で cd がタグ更新コミットを 1 つ�
 
 ---
 
-## Phase 6: ArgoCD
+## Phase 6: platform（helmfile）
+
+クラスタの土台を helmfile でまとめて入れる。**作成済み**（`platform/`）。
+
+### 責務の分界
+
+| レイヤ | 管理者 | 対象 |
+|---|---|---|
+| day-0 | helmfile | ArgoCD 本体、cloudflared |
+| day-2 | ArgoCD | アプリ本体（`deploy/`） |
+
+ArgoCD が ArgoCD 自身を管理する循環を避けるため、両者の対象は重ねない。
+
+### 構成
+
+- `platform/helmfile.yaml` — `argo/argo-cd` 10.4.0、`cloudflare/cloudflare-tunnel` 0.3.2
+- `platform/values/argocd.yaml.gotmpl` — 単一ノード向けに縮小。`applicationSet` / `notifications` / `dex` は無効
+- `platform/values/cloudflare-tunnel.yaml.gotmpl` — ingress ルールを Git に残す（remotely-managed 方式は採らない）
+- `platform/README.md` — トンネル作成から適用までの手順
+
+### 注意
+
+- トンネル認証情報の Secret は**帯域外で登録する**。chart の `secretName` を指定して chart 側に Secret を作らせない。キー名は `credentials.json` 固定（chart が `/etc/cloudflared/creds/credentials.json` を読むため）
+- **ArgoCD の UI は既定で公開しない。** GitOps の制御面をインターネットに晒さないため、`port-forward` で見る
+
+### 受け入れ確認
+
+`helmfile -f platform/helmfile.yaml apply` 後に ArgoCD と cloudflared の Pod が Running
+
+---
+
+## Phase 7: 公開
 
 ### 作業
 
 - `argocd/application.yaml` — `repoURL` は本リポジトリ、`path: deploy`、`targetRevision: main`、`syncPolicy.automated` に `prune: true` / `selfHeal: true`
-- ArgoCD 本体の導入と Application の初回登録は**手動 bootstrap**（GitOps の対象外）
+- ArgoCD への初回登録は**手動 bootstrap**（GitOps の対象外）
 
 ### 受け入れ確認
 
-main へ push → cd がタグを書き戻す → 数分以内に Pod のイメージが入れ替わる
-
----
-
-## Phase 7: Cloudflare Tunnel
-
-### 作業
-
-- cloudflared の Deployment と、ingress ルールの ConfigMap（`portfolio.<domain>` → `http://portfolio:8080`）を `deploy/` に追加
-- **トンネルの認証情報 Secret はリポジトリに置かない。** クラスタへ直接登録する。この作業はご自身で実施してください（当方はシークレット類のファイルを扱いません）
-
-### 受け入れ確認
-
-独自ドメインで HTTPS 公開され、`/about` の直リンクが 200 で返る
+main へ push → cd がタグを書き戻す → 数分以内に Pod のイメージが入れ替わる。独自ドメインで HTTPS 公開され、`/about` の直リンクが 200 で返る
 
 ---
 

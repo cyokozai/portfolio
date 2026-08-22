@@ -59,13 +59,31 @@ sequenceDiagram
 graph LR
   subgraph "docker compose (単一ネットワーク)"
     FE["frontend: bun + vite :5173"]
-    BE["backend: go run :8080"]
+    BE["backend: /tmp/portfolio :8080"]
   end
   H[Host Browser] --> FE
   FE -->|"proxy /api"| BE
 ```
 
 現状 `frontend/container/compose.yaml` と `backend/container/compose.yaml` は project 名が別（`portfolio-frontend` / `portfolio-backend`）でネットワークが分離しており、**フロントから API を叩き始めた時点で通信できない**。ルートに `compose.yaml` を 1 本置いて統合する。
+
+### 開発時にサーバを起動する方法
+
+**`go run` を使わない。** `go run` は自分が起動した子プロセスに SIGTERM を転送しないため、graceful shutdown が一度も実行されない。実測（2026-08-22）:
+
+```
+  PID  PPID  COMM
+   89    84  go        ← SIGTERM を受けて Terminated
+  133    89  server    ← 生き残って孤児化。正常停止のログは出ない
+```
+
+停止順序の検証は本番と同じく「ビルド済みバイナリを直接起動する」形で行う。
+
+```bash
+docker compose exec -d backend sh -c 'go build -o /tmp/portfolio ./cmd/server && /tmp/portfolio'
+```
+
+また compose の各サービスに `working_dir` を指定してある。`devcontainer.json` の `workspaceFolder` は VS Code でアタッチしたときにしか効かず、`docker compose exec` は `/workspace` に降りてしまうため。
 
 ## 検討したが採らなかった案
 

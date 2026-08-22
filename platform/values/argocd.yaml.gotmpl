@@ -1,0 +1,64 @@
+# 単一ノードの k3s 上で動かす前提の最小構成。
+# 冗長化よりも、VM のリソースを食い潰さないことを優先している。
+
+global:
+  domain: argocd.{{ .Values.domain }}
+
+configs:
+  params:
+    # TLS は Cloudflare 側で終端する。argocd-server 自身に証明書を持たせず
+    # 平文で動かす（gRPC/HTTP の二重 TLS を避ける）。
+    server.insecure: true
+
+  cm:
+    # このリポジトリのみを対象にする
+    timeout.reconciliation: 180s
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+server:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+# 単一アプリの構成では不要なコンポーネントを落とす。
+# VM のリソースを空けるためと、攻撃面を減らすため。
+
+# ApplicationSet コントローラは、このチャート(10.4.0)に enabled トグルが無い。
+# 停止するには replicas を 0 にする（Deployment 等は生成されるが Pod は起動しない）。
+applicationSet:
+  replicas: 0
+
+notifications:
+  enabled: false
+
+dex:
+  enabled: false
+
+redis:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 128Mi

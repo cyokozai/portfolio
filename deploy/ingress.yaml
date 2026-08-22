@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portfolio
+  labels:
+    app.kubernetes.io/name: portfolio
+spec:
+  # k3s 同梱の Traefik。名前は `kubectl get ingressclass` で確認できる。
+  ingressClassName: traefik
+  rules:
+    # 公開ドメイン。platform/helmfile.yaml の domain と揃える。
+    - host: CHANGE_ME.example.com
+      http:
+        paths:
+          # SPA なので全パスをアプリへ渡す。
+          # /api と静的ファイルの振り分けは Go 側が行う。
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: portfolio
+                port:
+                  name: http

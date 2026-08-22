@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfolio
+  labels:
+    app.kubernetes.io/name: portfolio
+spec:
+  # replicas を意図的に書いていない。
+  # ここに書くと ArgoCD の selfHeal が毎回この値へ戻し、HPA と綱引きになる。
+  # レプリカ数は HPA だけが持つ。
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: portfolio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: portfolio
+    spec:
+      # SIGTERM 後、readiness を 503 にして drain してから停止するまでの猶予。
+      # アプリ側の drainDelay(3s) + Shutdown に対して十分に取る。
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532   # distroless の nonroot
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: portfolio
+          # タグは GitHub Actions が kustomize edit set image で差し替える
+          image: ghcr.io/cyokozai/portfolio:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          readinessProbe:
+            # 停止開始時にここが 503 になり、Service のエンドポイントから外れる
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+          resources:
+            requests:
+              # HPA は requests を基準に使用率を計算する。
+              # 過大に置くと HPA が永久に発火しないため小さく取る。
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              # CPU limit は付けない。throttling が起きると
+              # HPA の使用率判断が歪むため。
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true   # 静的埋め込みなので書き込み不要
+            capabilities:
+              drop:
+                - ALL

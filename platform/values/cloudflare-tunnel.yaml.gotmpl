@@ -1,0 +1,36 @@
+cloudflare:
+  account: "{{ .Values.accountId }}"
+  tunnelName: "{{ .Values.tunnelName }}"
+  tunnelId: "{{ .Values.tunnelId }}"
+
+  # secretName を指定すると chart は Secret を作らず、既存のものを参照する。
+  # トンネル認証情報をリポジトリに置かないための指定。
+  # Secret には credentials.json というキーで認証情報を入れる
+  # （chart が /etc/cloudflared/creds/credentials.json を読むため）。
+  secretName: "{{ .Values.tunnelSecretName }}"
+
+  # ingress ルールを values に書くことで、経路定義が Git に残る
+  # （Cloudflare ダッシュボードで管理する remotely-managed 方式は
+  #   設定が Git の外に出るため採らない）。
+  # 末尾の catch-all（http_status:404）は chart 側が自動で付ける。
+  #
+  # 公開方針: 外に出すのは Web サイトのみ。
+  # ArgoCD をはじめ、それ以外のリソースはトンネルにも Ingress にも載せない。
+  # クラスタ内リソースの参照は kubectl port-forward で行う。
+  #
+  # 宛先は Ingress Controller。個別の Service を直接指さない。
+  # こうすると経路定義が deploy/ingress.yaml（ArgoCD 管理の day-2）に載り、
+  # ホストを増やしても platform/ を触らずに済む。
+  ingress:
+    - hostname: "{{ .Values.domain }}"
+      service: "http://{{ .Values.ingressService }}.{{ .Values.ingressNamespace }}.svc.cluster.local:{{ .Values.ingressPort }}"
+
+# トンネルの接続断でサイトが落ちないよう 2 本張る（chart の既定値と同じ）
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 32Mi
+  limits:
+    memory: 128Mi

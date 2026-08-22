@@ -10,6 +10,9 @@ services:
     build:
       context: ./backend
       dockerfile: container/Dockerfile
+    # devcontainer.json の workspaceFolder は VS Code でアタッチしたときにしか
+    # 効かない。docker compose exec でも同じ位置に降りるようここで指定する。
+    working_dir: /workspace/backend
     volumes:
       # モノレポ全体をマウント（本番ビルドで frontend/dist を static へ入れるため）
       - .:/workspace:cached
@@ -23,6 +26,7 @@ services:
     build:
       context: ./frontend
       dockerfile: container/Dockerfile
+    working_dir: /workspace/frontend
     volumes:
       - .:/workspace:cached
       - node_modules:/workspace/frontend/node_modules
