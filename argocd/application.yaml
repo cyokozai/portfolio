@@ -22,7 +22,11 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/cyokozai/portfolio-frontend.git
+    # platform/helmfile.yaml の repoURL と同じ値にする。
+    # ローカルの git remote は旧名 portfolio-frontend.git のままだが、
+    # GitHub 上の正式名は portfolio（リダイレクトで push は通っている）。
+    # ArgoCD はこの URL を鍵にして状態と認証情報を引くため、正式名で書く。
+    repoURL: https://github.com/cyokozai/portfolio.git
     # kustomize のルート。GitHub Actions が kustomization.yaml の
     # newTag を書き換え、その差分をここから拾う。
     path: deploy
