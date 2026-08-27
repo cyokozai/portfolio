@@ -9,6 +9,34 @@
 - **縦に 1 本通すことを優先**する。API を作り込む前に「ブラウザ → Vite proxy → Go → JSON」を最短で開通させ、その後に横へ広げる
 - 依存の順に並べてある。Phase 0 を飛ばすと Phase 2 で必ず詰まる
 
+## 進捗（2026-08-26 時点）
+
+| # | フェーズ | 状態 |
+|---|---|---|
+| 0 | 開発基盤の統合 | **完了**（コンテナ間疎通を確認） |
+| 1 | backend HTTP 骨格 | **完了**（TDD、SIGTERM の停止順序まで実プロセスで検証） |
+| 2 | frontend 接続 | **完了**（ブラウザでの視覚確認のみ未） |
+| 3 | 本番イメージ | **完了**（7.95MB / distroless / nonroot、`docker stop` で ExitCode 0） |
+| 4 | k8s マニフェスト | **作成完了**（`kustomize build` 検証済み）。クラスタへの適用は未 |
+| 5 | CI/CD | **未着手** ← 次はここ |
+| 6 | platform（helmfile） | **作成完了**（`helmfile template` EXIT=0）。クラスタへの適用は未 |
+| 7 | 公開 | **未着手**（`argocd/application.yaml` が未作成） |
+
+### 次のアクション
+
+1. **Phase 5**: `.github/workflows/ci.yaml` と `cd.yaml` を作成（Mac 側で作業可能）
+2. **Phase 7**: `argocd/application.yaml` を作成（Mac 側で作業可能）
+3. **`CHANGE_ME` の置換**: `platform/helmfile.yaml`（domain / tunnelId / accountId）と `deploy/ingress.yaml`（host）。domain は 2 ファイルに出てくるので揃える
+4. **VM 上での適用**（ユーザー作業）: トンネル作成 → Secret 登録 → `helmfile apply` → `kubectl apply -k deploy/` → ArgoCD へ Application 登録
+5. **push**: ローカルが `origin/feat/backend` より 2 コミット先行。GitHub Actions と ArgoCD は `main` を見るため、`main` へのマージも必要
+
+### 積み残し
+
+- ブラウザでの視覚確認（Chrome 拡張が未接続のため未実施）
+- HPA の実発火確認（VM 上で負荷をかけて行う）
+
+---
+
 ## 全体像
 
 | # | フェーズ | 主眼 | 目安 |
