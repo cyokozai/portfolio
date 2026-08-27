@@ -1,0 +1,66 @@
+# アプリ本体（deploy/）を ArgoCD に同期させるための Application。
+#
+# 責務の分界は platform/helmfile.yaml と対になっている:
+#   helmfile … day-0。ArgoCD 本体・cloudflared など、クラスタの土台
+#   ArgoCD   … day-2。ここで定義するアプリ本体の同期
+#
+# ArgoCD 自身は helmfile が入れるため、この Application の管理対象には含めない。
+#
+# このファイル自体は GitOps の対象外で、初回だけ手で登録する（bootstrap）:
+#   kubectl apply -n argocd -f argocd/application.yaml
+# 以降、deploy/ 配下の変更は ArgoCD が main を見て自動で追従する。
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: portfolio
+  # Application リソースは ArgoCD が動いている namespace に置く。
+  # 同期先（アプリの namespace）とは別物であることに注意。
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: portfolio
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/cyokozai/portfolio-frontend.git
+    # kustomize のルート。GitHub Actions が kustomization.yaml の
+    # newTag を書き換え、その差分をここから拾う。
+    path: deploy
+    # main だけを見る。作業ブランチの途中の状態は同期させない。
+    targetRevision: main
+
+  destination:
+    # ArgoCD と同じクラスタ（VM 上の単一ノード k3s）へ入れる
+    server: https://kubernetes.default.svc
+    # deploy/kustomization.yaml の namespace と揃える
+    namespace: portfolio
+
+  syncPolicy:
+    automated:
+      # Git から消したリソースをクラスタからも消す。
+      # 消し残りが次の差分を隠すのを防ぐ。
+      prune: true
+      # クラスタ側を手で触っても Git の状態へ戻す。
+      # 手当てが Git に残らないまま正になるのを防ぐ。
+      selfHeal: true
+    # CreateNamespace=true は付けない。
+    # portfolio namespace は deploy/namespace.yaml がマニフェストとして持っており、
+    # ArgoCD の同期対象に入っている。CreateNamespace は同期の外側で namespace を
+    # 先に作る機能なので、両方あると同じ namespace を二経路で作ることになり、
+    # どちらが正かが読めなくなる。マニフェスト側に一本化する。
+    syncOptions:
+      # 削除は依存の逆順で行う（Namespace が中身より先に消えないように）
+      - PrunePropagationPolicy=foreground
+
+  ignoreDifferences:
+    # Deployment の replicas は HPA が持つ。
+    # deploy/deployment.yaml には replicas を書いていないため、HPA がスケールすると
+    # 「Git には無いフィールドがクラスタにある」状態になり、selfHeal がそれを
+    # 剥がしにいって HPA と綱引きになる（スケールアウト直後に既定値へ戻される）。
+    # このパスだけ差分から外して、レプリカ数の決定権を HPA に一本化する。
+    - group: apps
+      kind: Deployment
+      name: portfolio
+      namespace: portfolio
+      jsonPointers:
+        - /spec/replicas
