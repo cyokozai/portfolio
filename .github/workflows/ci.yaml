@@ -1,0 +1,76 @@
+# PR と main への push で、backend / frontend がビルド可能かを検査する。
+# 本番イメージ（container/Dockerfile）のビルドは cd 側の責務なので、ここでは行わない。
+name: ci
+
+on:
+  pull_request:
+    # deploy/ は cd が `kustomize edit set image` で書き戻す領域。
+    # ここを除外しないと bot のコミットが CI を再起動させ、無限に自走する。
+    paths-ignore:
+      - 'deploy/**'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'deploy/**'
+
+# 同じ ref に新しい push が来たら古い実行を捨てる。
+# main は打ち切らない（緑の履歴を各コミットで残したいため）。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # go.mod の go ディレクティブを唯一の情報源にする（バージョンの二重管理を避ける）。
+          go-version-file: backend/go.mod
+          # 外部依存がまだ無く go.sum が存在しない。
+          # 有効なままだとキャッシュ対象の解決に失敗するため切っておく。
+          cache: false
+
+      # gofmt は差分があってもプロセスとしては成功するため、
+      # 出力が空でないことを自前で失敗に変換する。
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "gofmt がかかっていないファイル:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./...
+
+  frontend:
+    runs-on: ubuntu-latest
+    # bun はランナーに同梱されていない。導入用のサードパーティ action を増やす代わりに、
+    # container/Dockerfile の web ステージと同じ公式イメージの中で job を回す。
+    container: oven/bun:1
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      # lockfile を更新させない。更新が必要なら PR に含めさせる。
+      - name: bun install
+        run: bun install --frozen-lockfile
+
+      - name: bun run build
+        run: bun run build
