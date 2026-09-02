@@ -12,20 +12,25 @@
 
 ## システム全体構成
 
+デプロイ先は **Talos Linux の単一ノード Kubernetes クラスタ**。クラスタの土台（Traefik / Longhorn / cloudflared / Argo CD 本体 / metrics-server）は別リポジトリ `thin-k8s` が管理し、このリポジトリはアプリ本体（`deploy/`）と Argo CD の `Application` だけを持つ。
+
 ```mermaid
 graph TB
   U[Browser] -->|HTTPS| CF[Cloudflare]
-  CF -->|Tunnel| CD[cloudflared Pod]
-  CD --> SVC["Service portfolio:8080"]
+  CF -->|Tunnel| CD["cloudflared Pod (thin-k8s)"]
+  CD --> IG["Traefik (thin-k8s)"]
+  IG -->|"Ingress: cyokozai.net"| SVC["Service portfolio:8080"]
   SVC --> P1["Pod: Go 単一バイナリ"]
   SVC --> P2["Pod (HPA でスケール)"]
   HPA[HorizontalPodAutoscaler] -.->|scale| DEP[Deployment]
-  MS[metrics-server] -.->|CPU 使用率| HPA
+  MS["metrics-server (Talos machine config)"] -.->|CPU 使用率| HPA
   DEP --> P1
   DEP --> P2
 ```
 
 Pod 内の 1 プロセスが、埋め込んだ SPA と `/api` の両方を同一オリジンで返す。CORS は本番では発生しない。
+
+metrics-server は Talos の machine config（`thin-k8s` の `talos/patches/60-metrics-server.yaml`）が入れる。**Talos には k3s のような同梱コンポーネントが無い**ため、HPA を機能させるには明示的な導入が必要になる。helmfile ではなく machine config 側に寄せてある。
 
 ## リクエストの振り分け
 

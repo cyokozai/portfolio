@@ -9,7 +9,7 @@
 - **縦に 1 本通すことを優先**する。API を作り込む前に「ブラウザ → Vite proxy → Go → JSON」を最短で開通させ、その後に横へ広げる
 - 依存の順に並べてある。Phase 0 を飛ばすと Phase 2 で必ず詰まる
 
-## 進捗（2026-08-26 時点）
+## 進捗（2026-09-02 時点）
 
 | # | フェーズ | 状態 |
 |---|---|---|
@@ -17,23 +17,35 @@
 | 1 | backend HTTP 骨格 | **完了**（TDD、SIGTERM の停止順序まで実プロセスで検証） |
 | 2 | frontend 接続 | **完了**（ブラウザでの視覚確認のみ未） |
 | 3 | 本番イメージ | **完了**（7.95MB / distroless / nonroot、`docker stop` で ExitCode 0） |
-| 4 | k8s マニフェスト | **作成完了**（`kustomize build` 検証済み）。クラスタへの適用は未 |
-| 5 | CI/CD | **未着手** ← 次はここ |
-| 6 | platform（helmfile） | **作成完了**（`helmfile template` EXIT=0）。クラスタへの適用は未 |
-| 7 | 公開 | **未着手**（`argocd/application.yaml` が未作成） |
+| 4 | k8s マニフェスト | **作成完了**（`kustomize build` 検証済み）。クラスタへの同期は未 |
+| 5 | CI/CD | **実装済み**（PR 提出済み） |
+| 6 | platform（helmfile） | **`thin-k8s` へ委譲**。portfolio 側の `platform/` は削除した |
+| 7 | 公開（Application） | **実装済み**（`deploy/argocd/application.yaml`、PR 提出済み） |
+
+### デプロイ先の変更（2026-09-02）
+
+デプロイ先が VM 上の k3s から、**Talos Linux の単一ノードクラスタ**へ変わった。クラスタは別リポジトリ `thin-k8s` が管理する。責務の分界は次のとおり。
+
+| 対象 | 管理者 |
+|---|---|
+| Traefik / Longhorn / cloudflared / Argo CD 本体 | `thin-k8s` の core 層（`helmfile/core/helmfile.yaml`） |
+| metrics-server | `thin-k8s` の Talos machine config（`talos/patches/60-metrics-server.yaml`） |
+| アプリ本体（`deploy/`） | portfolio |
+| Argo CD の `Application` | portfolio（`deploy/argocd/application.yaml`） |
+
+Ingress Controller は **Traefik**（namespace `traefik`、`isDefaultClass: true`）。公開ドメインは `cyokozai.net` で、Cloudflare Tunnel 経由。
 
 ### 次のアクション
 
-1. **Phase 5**: `.github/workflows/ci.yaml` と `cd.yaml` を作成（Mac 側で作業可能）
-2. **Phase 7**: `argocd/application.yaml` を作成（Mac 側で作業可能）
-3. **`CHANGE_ME` の置換**: `platform/helmfile.yaml`（domain / tunnelId / accountId）と `deploy/ingress.yaml`（host）。domain は 2 ファイルに出てくるので揃える
-4. **VM 上での適用**（ユーザー作業）: トンネル作成 → Secret 登録 → `helmfile apply` → `kubectl apply -k deploy/` → ArgoCD へ Application 登録
-5. **push**: ローカルが `origin/feat/backend` より 2 コミット先行。GitHub Actions と ArgoCD は `main` を見るため、`main` へのマージも必要
+1. **Phase 4/7 の実クラスタ確認**: Argo CD が `deploy/` を同期し、Pod が Running・Ingress 経由で `cyokozai.net` が 200 を返すこと
+2. **HPA の確認**: `kubectl get hpa` の TARGETS が数値になること（metrics-server は Talos machine config が入れる）
+3. **CI/CD の一巡確認**: `main` への push で GHCR へ push → タグ書き戻しコミット 1 つ → Argo CD が同期、で止まること
+4. **`main` へのマージ**: GitHub Actions と Argo CD は `main` を見るため、作業ブランチのままでは反映されない
 
 ### 積み残し
 
 - ブラウザでの視覚確認（Chrome 拡張が未接続のため未実施）
-- HPA の実発火確認（VM 上で負荷をかけて行う）
+- HPA の実発火確認（クラスタ上で負荷をかけて行う）
 
 ---
 
@@ -45,12 +57,12 @@
 | 1 | backend HTTP 骨格 | readiness / SPA fallback / router / graceful shutdown（TDD） | 2〜3 時間 |
 | 2 | frontend 接続 | Vite proxy、`/api/profile` 開通、死んだコードの掃除 | 1〜2 時間 |
 | 3 | 本番イメージ | multi-stage → distroless 単一バイナリ | 1 時間 |
-| 4 | k8s マニフェスト | Deployment / Service / HPA。**検証は VM 上の k3s で行う** | 1〜2 時間 |
+| 4 | k8s マニフェスト | Deployment / Service / HPA / Ingress。**検証は Talos クラスタ上で行う** | 1〜2 時間 |
 | 5 | CI/CD | GitHub Actions（test / build / push / タグ差し替え） | 1〜2 時間 |
-| 6 | platform（helmfile） | ArgoCD 本体と cloudflared を VM の k3s へ導入 | 1 時間 |
-| 7 | 公開 | ArgoCD へ Application 登録、トンネル疎通確認 | 1 時間 |
+| 6 | platform（helmfile） | **`thin-k8s` へ委譲**（Argo CD 本体・cloudflared・Traefik は core 層が持つ） | ― |
+| 7 | 公開 | Argo CD へ Application 登録、トンネル疎通確認 | 1 時間 |
 
-**実行環境の方針（2026-08-22 決定）**: 実装・検証はすべて VM 上で行い、**Mac には何もインストールしない**。当初計画にあった Mac への `k3d` 導入は取りやめ。Mac 側で必要な確認は、使い捨てコンテナ（Docker は導入済み）で行う。
+**実行環境の方針（2026-08-22 決定 / 2026-09-02 更新）**: 実装・検証はすべてクラスタ側（Talos ノードと `thin-k8s` の作業環境）で行い、**Mac には何もインストールしない**。当初計画にあった Mac への軽量 k8s 導入は取りやめ。Mac 側で必要な確認は、使い捨てコンテナ（Docker は導入済み）で行う。
 
 ---
 
@@ -195,15 +207,16 @@ docker images portfolio:dev              # 20MB 未満を期待
 
 ### 受け入れ確認
 
-VM 上の k3s に対して実施する。
+Talos クラスタに対して実施する。**手動 `kubectl apply` は運用手段に含めない**（[ADR-002](./adr/ADR-002-gitops-delivery.md)）ため、適用は Argo CD 経由で行い、確認はその結果に対して行う。
 
 ```bash
-kubectl apply -k deploy/
-kubectl get hpa                # TARGETS が <unknown> でなく数値になること
-kubectl rollout restart deploy/portfolio && kubectl get pods -w   # 502 が出ないこと
+kustomize build deploy/ | kubectl diff -f -   # 同期前の差分確認（読み取りのみ）
+argocd app sync portfolio                     # または Argo CD の自動同期を待つ
+kubectl -n portfolio get hpa                  # TARGETS が <unknown> でなく数値になること
+kubectl -n portfolio rollout restart deploy/portfolio && kubectl -n portfolio get pods -w   # 502 が出ないこと
 ```
 
-metrics-server は k3s に同梱されているため追加導入は不要（`--disable` で外せる packaged component の一覧に含まれることを確認済み）。HPA の発火は負荷をかけて確認する。
+metrics-server は `thin-k8s` の Talos machine config（`talos/patches/60-metrics-server.yaml`）が入れる。Talos には k3s のような同梱コンポーネントが無いため、**追加導入が不要という前提は成り立たない**。helmfile には置かず machine config 側に寄せてある。HPA の発火は負荷をかけて確認する。
 
 ---
 
@@ -230,34 +243,37 @@ PR で ci が緑 / main への push で cd がタグ更新コミットを 1 つ�
 
 ---
 
-## Phase 6: platform（helmfile）
+## Phase 6: platform（helmfile）→ `thin-k8s` へ委譲（2026-09-02）
 
-クラスタの土台を helmfile でまとめて入れる。**作成済み**（`platform/`）。
+**このフェーズは portfolio の担当から外れた。** クラスタの土台は Talos クラスタ側リポジトリ `thin-k8s` が持つ。portfolio 側にあった `platform/`（helmfile と values）は削除した。
 
-### 責務の分界
+同じものを入れる helmfile が 2 つ並ぶと、`helmfile apply` で 2 つめの Argo CD（portfolio 側 10.6.0 / `thin-k8s` 側 10.4.2）と 2 つめの cloudflared を建てにいくため、重複を残さず削除する判断にした。
+
+### 移った先
+
+| 旧（portfolio） | 新（`thin-k8s`） |
+|---|---|
+| `platform/helmfile.yaml` の `argo/argo-cd` | `helmfile/core/helmfile.yaml`（Argo CD 10.4.2） |
+| `platform/helmfile.yaml` の `cloudflare/cloudflare-tunnel` | `helmfile/core/helmfile.yaml`（chart 0.3.2） |
+| `platform/values/argocd.yaml.gotmpl` | `helmfile/core/values/` 配下 |
+| `platform/values/cloudflare-tunnel.yaml.gotmpl` | `helmfile/core/values/` 配下 |
+| `platform/README.md`（トンネル作成手順） | `thin-k8s` の `SETUP.md` / `OPERATIONS.md` |
+| （新規） | Traefik 41.4.0 / Longhorn、metrics-server は `talos/patches/60-metrics-server.yaml` |
+
+### 責務の分界（変わっていない部分）
 
 | レイヤ | 管理者 | 対象 |
 |---|---|---|
-| day-0 | helmfile | ArgoCD 本体、cloudflared |
-| day-2 | ArgoCD | アプリ本体（`deploy/`） |
+| day-0 | `thin-k8s`（helmfile / machine config） | Traefik、Longhorn、cloudflared、Argo CD 本体、metrics-server |
+| day-2 | Argo CD | アプリ本体（`deploy/`） |
 
-ArgoCD が ArgoCD 自身を管理する循環を避けるため、両者の対象は重ねない。
+Argo CD が Argo CD 自身を管理する循環を避けるため、両者の対象は重ねない。この原則は担当が移っても変わらない。
 
-### 構成
+### portfolio 側に残る前提
 
-- `platform/helmfile.yaml` — `argo/argo-cd` 10.4.0、`cloudflare/cloudflare-tunnel` 0.3.2
-- `platform/values/argocd.yaml.gotmpl` — 単一ノード向けに縮小。`applicationSet` / `notifications` / `dex` は無効
-- `platform/values/cloudflare-tunnel.yaml.gotmpl` — ingress ルールを Git に残す（remotely-managed 方式は採らない）
-- `platform/README.md` — トンネル作成から適用までの手順
-
-### 注意
-
-- トンネル認証情報の Secret は**帯域外で登録する**。chart の `secretName` を指定して chart 側に Secret を作らせない。キー名は `credentials.json` 固定（chart が `/etc/cloudflared/creds/credentials.json` を読むため）
-- **ArgoCD の UI は既定で公開しない。** GitOps の制御面をインターネットに晒さないため、`port-forward` で見る
-
-### 受け入れ確認
-
-`helmfile -f platform/helmfile.yaml apply` 後に ArgoCD と cloudflared の Pod が Running
+- トンネル認証情報の Secret は帯域外で登録する（リポジトリには置かない）
+- Argo CD の UI は既定で公開しない。GitOps の制御面をインターネットに晒さないため、`port-forward` で見る
+- Ingress は `ingressClassName: traefik` を前提にする（`deploy/ingress.yaml`）
 
 ---
 
@@ -265,12 +281,12 @@ ArgoCD が ArgoCD 自身を管理する循環を避けるため、両者の対�
 
 ### 作業
 
-- `argocd/application.yaml` — `repoURL` は本リポジトリ、`path: deploy`、`targetRevision: main`、`syncPolicy.automated` に `prune: true` / `selfHeal: true`
-- ArgoCD への初回登録は**手動 bootstrap**（GitOps の対象外）
+- `deploy/argocd/application.yaml` — `repoURL` は本リポジトリ、`path: deploy`、`targetRevision: main`、`syncPolicy.automated` に `prune: true` / `selfHeal: true`
+- Argo CD への初回登録は**手動 bootstrap**（GitOps の対象外）。Argo CD 本体は `thin-k8s` が入れる
 
 ### 受け入れ確認
 
-main へ push → cd がタグを書き戻す → 数分以内に Pod のイメージが入れ替わる。独自ドメインで HTTPS 公開され、`/about` の直リンクが 200 で返る
+main へ push → cd がタグを書き戻す → 数分以内に Pod のイメージが入れ替わる。`cyokozai.net` で HTTPS 公開され、`/about` の直リンクが 200 で返る
 
 ---
 

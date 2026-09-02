@@ -50,3 +50,11 @@ Go バイナリに SPA を `//go:embed all:static` で埋め込み、**単一プ
 - 静的ファイルのみの修正でも Go バイナリの再ビルドが必要
 - 静的配信と API を個別にスケールできない
 - gzip / brotli と `Cache-Control` は自前実装が必要（ETag と Range は標準実装で対応済み）
+
+## 後日の変更
+
+**2026-09-02**: デプロイ先が変わった。上記の決定（Go 単一バイナリ + `go:embed`）は維持する。
+
+- コンテキストにある「オンプレ VM 上の k3s / k3d」は、**Talos Linux の単一ノード Kubernetes クラスタ**に変わった。クラスタは別リポジトリ `thin-k8s` が管理する
+- 決定の根拠（完全ステートレス / HPA のスケール対象が 1 つ / 同一オリジン / distroless で小さい）はいずれもディストリビューションに依存しないため、決定は書き換えない
+- HPA が依存する metrics-server は、k3s の同梱コンポーネントではなく `thin-k8s` の Talos machine config（`talos/patches/60-metrics-server.yaml`）が入れる

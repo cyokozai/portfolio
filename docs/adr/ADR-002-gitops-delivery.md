@@ -42,3 +42,13 @@ graph LR
 - **GHCR を private にすると imagePullSecret が必要** — ポートフォリオなのでイメージは public を前提とする
 - ArgoCD 自体の導入は GitOps の対象外（bootstrap は初回のみ手動）
 - Cloudflare Tunnel の認証情報は Secret として扱う。リポジトリには絶対に置かず、クラスタへ直接登録する
+
+## 後日の変更
+
+**2026-09-02**: デプロイ先と day-0 の担当が変わった。上記の決定（GitHub Actions でビルドし Argo CD が pull 型で同期する）は維持する。
+
+- コンテキストにある「オンプレ VM 上の k3s / k3d」は、**Talos Linux の単一ノード Kubernetes クラスタ**に変わった
+- 「Argo CD 自体の導入は GitOps の対象外」という結論は生きているが、**その担当が別リポジトリ `thin-k8s` の core 層（`helmfile/core/helmfile.yaml`）へ移った**。portfolio 側にあった `platform/`（helmfile と values）は、同じものを入れる定義が 2 つ並ぶ重複になるため削除した
+- Cloudflare Tunnel（cloudflared）と Ingress Controller（Traefik）も同じく `thin-k8s` の core 層が持つ。portfolio は `deploy/`（アプリ本体）と `deploy/argocd/application.yaml` だけを持つ
+- 「Kustomize を overlay 無しで使う理由」で挙げた k3d の例示は現状に合わないが、**環境が本番 1 つだけで overlay の分岐先が無い**という理由自体は変わらない
+- 上の mermaid 図（マニフェストをアプリと同一リポジトリの `deploy/` に置く構造）は変わっていない
