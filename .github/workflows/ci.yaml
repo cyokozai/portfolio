@@ -1,16 +1,19 @@
-# PR と main への push で、backend / frontend がビルド可能かを検査する。
-# 本番イメージ（container/Dockerfile）のビルドは cd 側の責務なので、ここでは行わない。
+# W1（docs/ci-requirements.md）: PR がマージ前に壊れていないことを保証する。
+# イメージは push しない。ビルドが通ることだけを確認する。
 name: ci
 
 on:
   pull_request:
-    # deploy/ は cd が `kustomize edit set image` で書き戻す領域。
-    # ここを除外しないと bot のコミットが CI を再起動させ、無限に自走する。
-    paths-ignore:
-      - 'deploy/**'
+    branches:
+      - main
+    # ここに paths-ignore は置かない。
+    # deploy/ だけを変更した PR で W1 が起動せず、必須チェックが完了しないまま止まるため。
+    # bot の書き戻しは PR を作らないので、pull_request 側に除外は要らない。
   push:
     branches:
       - main
+    # push 側は除外する。cd が deploy/ を書き戻すため、
+    # 除外しないと bot のコミットで無意味な実行を積む。
     paths-ignore:
       - 'deploy/**'
 
@@ -24,6 +27,7 @@ permissions:
   contents: read
 
 jobs:
+  # W1 のジョブ 1・2（go test / go vet）。同じツールチェーンの導入で済むので 1 job にまとめる。
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -36,8 +40,10 @@ jobs:
         with:
           # go.mod の go ディレクティブを唯一の情報源にする（バージョンの二重管理を避ける）。
           go-version-file: backend/go.mod
-          # 外部依存がまだ無く go.sum が存在しない。
-          # 有効なままだとキャッシュ対象の解決に失敗するため切っておく。
+          # 外部依存がまだ無く go.sum が存在しないため、キャッシュできる実体が無い。
+          # 有効にすると対象の解決に失敗するので切ってある。
+          # go.sum が生まれた時点で cache: true に戻し、
+          # cache-dependency-path: backend/go.sum を付ければよい。
           cache: false
 
       # gofmt は差分があってもプロセスとしては成功するため、
@@ -57,9 +63,10 @@ jobs:
       - name: go test
         run: go test ./...
 
+  # W1 のジョブ 3（フロントのビルド確認）。
   frontend:
     runs-on: ubuntu-latest
-    # bun はランナーに同梱されていない。導入用のサードパーティ action を増やす代わりに、
+    # bun はランナーに同梱されていない。導入用のサードパーティ action を足す代わりに、
     # container/Dockerfile の web ステージと同じ公式イメージの中で job を回す。
     container: oven/bun:1
     defaults:
@@ -68,9 +75,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # bun.lock の内容で鍵を切る。ロックが動かない限り再取得しない。
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
       # lockfile を更新させない。更新が必要なら PR に含めさせる。
       - name: bun install
         run: bun install --frozen-lockfile
 
       - name: bun run build
         run: bun run build
+
+  # W1 のジョブ 4（イメージのビルド確認）。
+  # 1〜3 が通ってから走らせる。落ちる PR で本番イメージを組み立てる実行時間を使わないため。
+  image:
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: イメージのビルド確認（push しない）
+        uses: docker/build-push-action@v6
+        with:
+          # frontend と backend の両方が要るためコンテキストはリポジトリルート。
+          context: .
+          file: container/Dockerfile
+          push: false
+          # ノードは amd64 のみ。arm64 を足すとその分だけ時間が延びる。
+          platforms: linux/amd64
+          # cd と同じ鍵の GHA キャッシュを共有する。PR で温めた層を main でも使える。
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

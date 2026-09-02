@@ -1,12 +1,19 @@
-# main への push で本番イメージを GHCR へ載せ、deploy/ のタグを書き戻す。
-# 実際のクラスタへの反映は ArgoCD が deploy/ の差分を見て行う（push 型のデプロイはしない）。
+# W2（docs/ci-requirements.md）: main への push で本番イメージを GHCR へ publish し、
+# deploy/ のタグを更新する。クラスタへの反映は Argo CD が deploy/ の差分を見て行う
+# （push 型のデプロイはしない）。
+#
+#   push to main
+#     ├─ publish  : docker build → ghcr.io/cyokozai/portfolio:<SHA>
+#     ├─ manifest : kustomize edit set image …:<SHA> → 書き戻し [skip ci] → Argo CD が同期
+#     └─ release  : Conventional Commits から semver を決めて tag + GitHub Release
+#                   （人間向けの変更履歴。デプロイ経路は SHA タグのままで、これには依存しない）
 name: cd
 
 on:
   push:
     branches:
       - main
-    # このワークフロー自身が deploy/ を書き換えてコミットを戻すため、
+    # manifest job が deploy/ を書き換えてコミットを戻すため、
     # 除外しないと自分の書き戻しで自分が起動し、無限に自走する。
     paths-ignore:
       - 'deploy/**'
@@ -27,11 +34,12 @@ env:
   KUSTOMIZE_VERSION: v5.7.1
 
 jobs:
-  release:
+  # W2 のジョブ 1 — build & push。
+  publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # deploy/ へタグを書き戻すため
-      packages: write # GHCR へ push するため
+      contents: read
+      packages: write # GHCR への push に必要
     steps:
       - uses: actions/checkout@v4
 
@@ -43,8 +51,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # タグは latest ではなく git sha にする。
-      # latest だとマニフェストに差分が出ず、ArgoCD が同期すべき変更を検知できない。
+      # タグはコミット SHA のみ。latest は付けない。
+      # latest だと kustomization.yaml のタグが変わらず git に差分が出ないため、
+      # Argo CD が同期しない（ADR-002）。
       - name: イメージをビルドして GHCR へ push
         uses: docker/build-push-action@v6
         with:
@@ -53,8 +62,19 @@ jobs:
           file: container/Dockerfile
           push: true
           tags: ${{ env.IMAGE }}:${{ github.sha }}
+          # ノードは Intel i3（amd64）。arm64 は不要で、作るとその分だけ時間が延びる。
+          platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # W2 のジョブ 2 — マニフェスト更新。ジョブ 1 の成功後に実行する。
+  manifest:
+    runs-on: ubuntu-latest
+    needs: publish
+    permissions:
+      contents: write # deploy/ への書き戻しに必要
+    steps:
+      - uses: actions/checkout@v4
 
       - name: kustomize を取得
         run: |
@@ -65,6 +85,8 @@ jobs:
       - name: deploy/ のイメージタグを書き戻す
         run: |
           cd deploy
+          # 参照するのはコミット SHA。latest は指させない
+          # （差分が出ず Argo CD が同期しないため。ADR-002）。
           kustomize edit set image "${IMAGE}:${GITHUB_SHA}"
           cd ..
 
@@ -83,3 +105,112 @@ jobs:
           # さらに GITHUB_TOKEN による push はワークフローを起動しないため、防御は三重になる。
           git commit -m "chore: イメージタグを ${GITHUB_SHA} へ更新 [skip ci]"
           git push origin HEAD:main
+
+  # 要件書には無いが、人間向けの変更履歴として GitHub Release を作る。
+  # デプロイが参照するのは SHA タグだけなので、この job はデプロイ経路に影響しない。
+  # publish の後に置く。逆順だと、ビルドが失敗したときに実体のないリリースが残る。
+  release:
+    runs-on: ubuntu-latest
+    needs: publish
+    permissions:
+      contents: write # タグとリリースの作成に必要
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 既定の depth 1 ではタグが降りてこず、前回バージョンを判定できない。
+          # ここを浅くすると「常に初回」と誤判定して静かに壊れる。
+          fetch-depth: 0
+
+      - name: バージョンを決める
+        id: version
+        run: |
+          # 直近の SemVer タグ。v:refname 降順の先頭を採る。
+          prev="$(git tag --list 'v*.*.*' --sort=-v:refname | head -n 1)"
+          if [ -n "$prev" ]; then
+            range="${prev}..HEAD"
+          else
+            range="HEAD"
+          fi
+          echo "前回タグ: ${prev:-（無し）} / 解析範囲: ${range}"
+
+          # commit の全文（subject + body）を対象にする。
+          # BREAKING CHANGE: が body 側に書かれる形式を拾うため。
+          # merge commit は "Merge pull request …" で Conventional Commits ではないので外す。
+          log="$(git log --no-merges --format='%B' "$range")"
+
+          # 判定は破壊的変更 > feat > fix/perf の順。
+          # docs / chore / refactor / test / 非 Conventional Commits のみなら none。
+          # scope 付き（feat(backend): …）も拾う。
+          bump='none'
+          if printf '%s\n' "$log" | grep -Eq '^[a-zA-Z]+(\([^)]*\))?!:' \
+            || printf '%s\n' "$log" | grep -Eq '^BREAKING[ -]CHANGE:'; then
+            bump='major'
+          elif printf '%s\n' "$log" | grep -Eq '^feat(\([^)]*\))?:'; then
+            bump='minor'
+          elif printf '%s\n' "$log" | grep -Eq '^(fix|perf)(\([^)]*\))?:'; then
+            bump='patch'
+          fi
+
+          # リリース対象の変更が無い push ではリリースを作らずに正常終了する。
+          # イメージの publish と書き戻しは別 job なので、ここで止めても実行される
+          # （要件書は push ごとに publish する仕様）。
+          if [ "$bump" = 'none' ]; then
+            echo "リリース対象の変更なし（bump=none）。リリースは作らない。"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$prev" ]; then
+            # 初回は 0.1.0 から始める（破壊的変更が含まれていても 1.0.0 には上げない）。
+            version="v0.1.0"
+          else
+            IFS=. read -r major minor patch <<EOF
+          ${prev#v}
+          EOF
+            case "$bump" in
+              major) major=$((major + 1)); minor=0; patch=0 ;;
+              minor) minor=$((minor + 1)); patch=0 ;;
+              patch) patch=$((patch + 1)) ;;
+            esac
+            version="v${major}.${minor}.${patch}"
+          fi
+
+          echo "bump=${bump} / 次のバージョン=${version}"
+          {
+            echo "release=true"
+            echo "version=${version}"
+            echo "prev=${prev}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: タグとリリースを作る
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PREV: ${{ steps.version.outputs.prev }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          # タグは push された commit（= manifest job の書き戻しより前の sha）に付く。
+          # そのためタグの中身には更新後の kustomization.yaml が含まれない。
+          # Argo CD が追うのは main ブランチでタグではないので実害はない。
+          git tag -a "$VERSION" -m "release $VERSION"
+          git push origin "refs/tags/${VERSION}"
+
+          # 配信されたイメージの参照を本文の先頭に 1 行置く。
+          # リリース（semver）と実デプロイ（SHA タグ）はここで紐付く。
+          # gh は --notes と --generate-notes の併用で両方を連結する。
+          notes="配信イメージ: \`${IMAGE}:${GITHUB_SHA}\`"
+          if [ -n "$PREV" ]; then
+            gh release create "$VERSION" \
+              --title "$VERSION" \
+              --notes "$notes" \
+              --generate-notes \
+              --notes-start-tag "$PREV"
+          else
+            gh release create "$VERSION" \
+              --title "$VERSION" \
+              --notes "$notes" \
+              --generate-notes
+          fi
