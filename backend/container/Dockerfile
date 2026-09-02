@@ -4,7 +4,7 @@
 #  開発用イメージ（devcontainer 用）                            #
 #  ※本番用イメージはデプロイフェーズで別途マルチステージで作成  #
 # ============================================================ #
-FROM golang:1.26-bookworm
+FROM golang:1.27-bookworm
 
 ENV LANG=C.UTF-8 \
     TZ=Asia/Tokyo \

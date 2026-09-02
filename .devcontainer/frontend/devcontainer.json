@@ -1,9 +1,9 @@
 {
   "name": "portfolio-frontend",
 
-  // frontend/container/compose.yaml の frontend サービスを開発環境として使う
+  // ルートの compose.yaml の frontend サービスを開発環境として使う
   // （.devcontainer/frontend/ から見て 2 階層上がリポジトリルート）
-  "dockerComposeFile": ["../../frontend/container/compose.yaml"],
+  "dockerComposeFile": ["../../compose.yaml"],
   "service": "frontend",
 
   // リポジトリ全体を /workspace にマウントし、作業ディレクトリは frontend/
@@ -23,6 +23,10 @@
 
   // Dockerfile と揃えて bun ユーザで動かす
   "remoteUser": "bun",
+
+  // macOS では uid を書き換えない（既定 true だと bun が 1000→501 に変わり、
+  // named volume(node_modules, uid 1000) と所有者が食い違って EACCES になる）
+  "updateRemoteUserUID": false,
 
   "customizations": {
     "vscode": {

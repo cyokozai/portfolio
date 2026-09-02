@@ -1,0 +1,13 @@
+.git
+.github
+.devcontainer
+.vscode
+.claude
+docs
+compose.yaml
+**/node_modules
+frontend/dist
+backend/internal/assets/static/*
+!backend/internal/assets/static/.gitkeep
+*.md
+.DS_Store
