@@ -16,12 +16,16 @@ type Profile struct {
 
 // DB を持たない方針のため、内容はここに直接置く。
 var defaultProfile = Profile{
-	Name:  "Yusuke Inoue",
-	Alias: "cyokozai | 猪口才",
+	Name:  "井上 裕介",
+	Alias: "cyokozai",
 	Label: "Platform Engineer · Graduate Student",
 	Affiliations: []string{
-		"千葉工業大学大学院 情報科学研究科 情報科学専攻",
+		"千葉工業大学大学院 情報科学研究科 情報科学専攻 修士2年",
+		"山口研究室",
+		"ネットワークコンテンツ研究会 / Nekko Cloud Team",
+		"クラウドネイティブ会議 実行委員",
 		"CloudNative Days 実行委員",
+		"Open Source Summit Japan 2026 / KubeCon Japan 2026 Staff",
 	},
 	AvatarURL: "https://github.com/cyokozai.png",
 }
