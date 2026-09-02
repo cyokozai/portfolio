@@ -16,3 +16,14 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - PrunePropagationPolicy=foreground
+  ignoreDifferences:
+    # レプリカ数は HPA が持つ。この除外が無いと selfHeal が
+    # スケールアウトを差分と見て戻し、HPA と綱引きになる。
+    - group: apps
+      kind: Deployment
+      name: portfolio
+      namespace: portfolio
+      jsonPointers:
+        - /spec/replicas
