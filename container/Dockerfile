@@ -18,7 +18,7 @@ COPY frontend/ ./
 RUN bun run build
 
 # ---- stage 2: Go バイナリをビルドする ----
-FROM golang:1.26-bookworm AS build
+FROM golang:1.27-bookworm AS build
 WORKDIR /src/backend
 
 COPY backend/go.mod ./
@@ -40,7 +40,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # ---- stage 3: 実行イメージ ----
 # シェルもパッケージマネージャも持たない。攻撃面が最小で、
 # 侵入されても exec できるものが無い。
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 
 COPY --from=build /out/portfolio /portfolio
 

@@ -53,7 +53,7 @@ releases:
     namespace: argocd
     createNamespace: true
     chart: argo/argo-cd
-    version: 10.4.0
+    version: 10.6.0
     values:
       - values/argocd.yaml.gotmpl
 
@@ -74,5 +74,5 @@ releases:
   # - name: metrics-server
   #   namespace: kube-system
   #   chart: metrics-server/metrics-server
-  #   version: 3.12.2
+  #   version: 3.14.0
   #   installed: false
