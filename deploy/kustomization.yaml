@@ -7,6 +7,7 @@ resources:
 - service.yaml
 - hpa.yaml
 - ingress.yaml
+- networkpolicy.yaml
 images:
 - name: ghcr.io/cyokozai/portfolio
   newTag: d34375c4fe149b9d2ea6ae7c7ac4ec4ebbcdf132

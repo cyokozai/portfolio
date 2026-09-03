@@ -14,6 +14,12 @@ spec:
         app.kubernetes.io/name: portfolio
     spec:
       terminationGracePeriodSeconds: 30
+      # 既定 ServiceAccount のトークンを配らない。
+      # このアプリは Kubernetes API を一切呼ばない（backend/go.mod に外部依存が
+      # 1 件も無く、client-go を含まない標準ライブラリのみの実装）。
+      # 使われないトークンが配布されていると、侵入された際の横移動の足場に
+      # なるだけなので外す。
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
