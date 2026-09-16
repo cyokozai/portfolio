@@ -1,0 +1,80 @@
+# portfolio Pod の通信を必要最小限に絞る。
+#
+# このアプリが必要とする通信は 2 方向しかない。
+#   - 受信: Ingress Controller (Traefik) から 8080/TCP
+#   - 送信: DNS 解決のみ
+# SPA もプロフィールデータもバイナリに埋め込み済みで外部 API を呼ばず、
+# DB も持たないため、これ以外の通信は発生しない。
+#
+# ---------------------------------------------------------------------------
+# 【重要】このポリシーが実際に実施されるかは未確認。適用前に確認すること。
+#
+# 稼働先は Talos Linux v1.13.9 / Kubernetes v1.36.2、CNI は Talos 既定の
+# Flannel（クラスタ定義はリポジトリ thin-k8s）。Talos の Flannel は
+# NetworkPolicy を既定では実施しない。machine config で
+#   cluster.network.cni.flannel.kubeNetworkPoliciesEnabled: true
+# を有効にして初めて kube-network-policies が配備され、実施される。
+# 公式ドキュメントも「この設定が無い場合、NetworkPolicy リソースは
+# 受理されるだけで実施されない」と明記している。
+#   https://docs.siderolabs.com/kubernetes-guides/cni/flannel
+#
+# thin-k8s の talos/patches/ には現時点でこの設定が無いため、
+# **このマニフェストを適用しても何も遮断されない可能性が高い**。
+# 実施させるには thin-k8s 側の machine config 変更が別途必要（本 PR の範囲外）。
+#
+# さらに、実施を有効化した場合でも当クラスタは単一ノード構成であり、
+# kube-network-policies には「同一ノード内の Pod 間通信が常に許可される」
+# という報告済みの挙動がある（kubernetes-sigs/kube-network-policies#283）。
+# 全 Pod が同居する単一ノードでは Ingress 規則が実質的に働かない版が
+# あり得るため、遮断されることを前提にした設計にはしないこと。
+# 検証手順は PR 本文に記載した。
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: portfolio
+  labels:
+    app.kubernetes.io/name: portfolio
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: portfolio
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Traefik からのみ受ける。
+    # namespaceSelector が使う kubernetes.io/metadata.name ラベルは、
+    # NamespaceDefaultLabelName が GA になった Kubernetes v1.22 以降、
+    # 全 Namespace に API サーバが自動付与する。当クラスタは v1.36.2 なので
+    # 明示的なラベル付けは不要。
+    #   https://github.com/kubernetes/kubernetes/pull/101342
+    #
+    # 注意: Traefik の Namespace は kube-system ではなく traefik。
+    # thin-k8s の helmfile/core/helmfile.yaml が namespace: traefik で
+    # 配備している（k3s 同梱 Traefik の kube-system とは異なる）。
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # DNS のみ。CoreDNS は Talos が kube-system に配備し、
+    # ラベルは慣例どおり k8s-app: kube-dns。
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
