@@ -5,9 +5,9 @@
     "": {
       "name": "workspace",
       "devDependencies": {
-        "@sveltejs/vite-plugin-svelte": "latest",
-        "svelte": "latest",
-        "vite": "latest",
+        "@sveltejs/vite-plugin-svelte": "^7.3.0",
+        "svelte": "^5.57.0",
+        "vite": "^8.2.2",
       },
     },
   },
